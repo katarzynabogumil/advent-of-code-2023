@@ -72,5 +72,12 @@ function leastCommonMultiple(a, b) {
   return (a * b) / greatestCommonDivisor(a, b);
 }
 
+/*
+Note: LCM could have been used only because in the input 
+the distance from A to Z equals the next circle from Z to Z.
+TO be honest, I analyzed a few first the circle lengths from the 
+starting points and after noticing this, decided to go for LCM.
+*/
+
 console.log(first(data));
 console.log(second(data));
