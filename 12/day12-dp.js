@@ -18,7 +18,6 @@ function first(data) {
       rules,
       broken: Array(rules.length).fill(0),
       start: 0,
-      solutions: 0,
       i: 0,
     });
 
@@ -27,7 +26,8 @@ function first(data) {
   return sum;
 }
 
-function inspectLine({ springs, rules, broken, start, solutions, i }) {
+function inspectLine({ springs, rules, broken, start, i }) {
+  let solutions = 0;
   for (let j = start; j < springs.length; j++) {
     const spring = springs[j];
     if (spring === '#') broken[i] = broken[i] + 1 || 1;
@@ -58,7 +58,6 @@ function inspectLine({ springs, rules, broken, start, solutions, i }) {
         rules: rules.slice(),
         broken: broken.slice(),
         start: j + 1,
-        solutions: 0,
         i,
       });
     }
@@ -82,8 +81,10 @@ function inspectLine({ springs, rules, broken, start, solutions, i }) {
 
 /*
 Backtracking from part one was too slow for this one.
-Had to look for some inspiration and hints on reddit to use memoize,
+I had to look for some inspiration and hints on reddit to use memoize,
 so this solution doesn't feel completely mine.
+In day12-backtracking I changed part one to work also for part two, 
+using memoize with the initial backtracking function with small changes.
 */
 
 function second(data) {
