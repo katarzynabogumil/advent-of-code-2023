@@ -47,7 +47,7 @@ function second(data) {
 
   while (counter <= cycles && !cycleFound) {
     counter++;
-    lines = cycle(lines);
+    cycle(lines);
 
     const size = linesSet.size;
     const str = lines.map((line) => line.join('')).join('\n');
@@ -64,7 +64,7 @@ function second(data) {
   }
 
   for (let _ = 0; _ < lastCircles; _++) {
-    lines = cycle(lines);
+    cycle(lines);
   }
 
   let sum = 0;
@@ -79,12 +79,7 @@ function second(data) {
   return sum;
 }
 
-function cycle(input) {
-  return east(south(west(north(input))));
-}
-
-function north(input) {
-  const lines = input.slice().map((line) => line.slice());
+function north(lines) {
   const columns = transpose(lines);
   lines.forEach((line, j) => {
     line.forEach((value, i) => {
@@ -105,7 +100,16 @@ function north(input) {
       columns[i][lastFixed] = 'O';
     });
   });
-  return lines;
+}
+
+/*
+// First, I reused the north function to check the result,
+// but then wrote the new ones to speed it up slightly.
+// Note: These are pure, so for them to work 'north' has to return lines
+// lines have to be reassigned each time in 'second' function.
+
+function cycle(lines) {
+  return east(south(west(north(lines))));
 }
 
 function west(lines) {
@@ -122,6 +126,78 @@ function east(lines) {
   const transposed = transpose(lines.map((line) => line.reverse()));
   return transpose(north(transposed)).map((line) => line.reverse());
 }
+*/
+
+function cycle(lines) {
+  north(lines);
+  west(lines);
+  south(lines);
+  east(lines);
+}
+
+function west(lines) {
+  lines.forEach((line, j) => {
+    line.forEach((value, i) => {
+      if (value !== 'O') return;
+      let lastFixed = Math.max(
+        line.slice(0, i).lastIndexOf('#') + 1,
+        line.slice(0, i).lastIndexOf('O') + 1
+      );
+
+      lines[j][i] = '.';
+      lines[j][lastFixed] = 'O';
+    });
+  });
+}
+
+function south(lines) {
+  const columns = transpose(lines);
+  for (let j = lines.length - 1; j >= 0; j--) {
+    const line = lines[j];
+    line.forEach((value, i) => {
+      if (value !== 'O') return;
+      const column = columns[i];
+      let fixedRock = column.slice(j + 1).findIndex((x) => x === '#');
+      let movableRock = column.slice(j + 1).findIndex((x) => x === 'O');
+      let firstFixed = Math.min(
+        j + (fixedRock !== -1 ? fixedRock : Infinity),
+        j + (movableRock !== -1 ? movableRock : Infinity)
+      );
+      if (firstFixed >= lines.length) firstFixed = lines.length - 1;
+
+      // move in rows
+      lines[j][i] = '.';
+      lines[firstFixed][i] = 'O';
+
+      // move in columns
+      columns[i][j] = '.';
+      columns[i][firstFixed] = 'O';
+    });
+  }
+}
+
+function east(lines) {
+  lines.forEach((line, j) => {
+    for (let i = line.length - 1; i >= 0; i--) {
+      const value = line[i];
+      if (value !== 'O') continue;
+      let fixedRock = line.slice(i + 1).findIndex((x) => x === '#');
+      let movableRock = line.slice(i + 1).findIndex((x) => x === 'O');
+      let firstFixed = Math.min(
+        i + (fixedRock !== -1 ? fixedRock : Infinity),
+        i + (movableRock !== -1 ? movableRock : Infinity)
+      );
+      if (firstFixed >= line.length) firstFixed = line.length - 1;
+
+      lines[j][i] = '.';
+      lines[j][firstFixed] = 'O';
+    }
+  });
+}
 
 console.log(first(data));
+
+// const start = performance.now();
 console.log(second(data));
+// const end = performance.now();
+// console.log(`Execution time: ${end - start} ms`);
