@@ -1,3 +1,5 @@
+'use strict';
+
 const fs = require('fs');
 
 const data = fs.readFileSync('data.txt', 'utf8', (err, data) => {
@@ -6,7 +8,7 @@ const data = fs.readFileSync('data.txt', 'utf8', (err, data) => {
 });
 
 function first(data) {
-  lines = data.split('\n');
+  const lines = data.split('\n');
   const results = new Set([...Array(lines.length).keys()].map((i) => i + 1));
 
   const allCubes = {
@@ -18,7 +20,7 @@ function first(data) {
   lines.forEach((line, i) => {
     for (let [color, maxCubes] of Object.entries(allCubes)) {
       const colorCubes = line.match(
-        new RegExp('\\d+(?=\\s' + color + ')', 'g'),
+        new RegExp('\\d+(?=\\s' + color + ')', 'g')
       );
       for (let num of colorCubes) {
         if (num > maxCubes) {

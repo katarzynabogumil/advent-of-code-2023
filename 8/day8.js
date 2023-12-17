@@ -1,3 +1,5 @@
+'use strict';
+
 const fs = require('fs');
 
 const data = fs.readFileSync('data.txt', 'utf8', (err, data) => {
@@ -15,7 +17,7 @@ function first(data) {
   let current = 'AAA';
 
   while (!found) {
-    for (i = 0; i < instructions.length; i++) {
+    for (let i = 0; i < instructions.length; i++) {
       const direction = instructions[i];
       current = nodes[current][direction];
       steps += 1;
@@ -48,7 +50,7 @@ function second(data) {
     let steps = 0;
     let found = false;
     while (!found) {
-      for (i = 0; i < instructions.length; i++) {
+      for (let i = 0; i < instructions.length; i++) {
         const direction = instructions[i];
         current = nodes[current][direction];
         steps += 1;
