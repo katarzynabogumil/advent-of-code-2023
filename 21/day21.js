@@ -10,29 +10,33 @@ const data = fs.readFileSync('data.txt', 'utf8', (err, data) => {
 const [START, MATRIX] = parseInput(data);
 
 function first(steps, start = [str(START)]) {
-  let currNodes = new Set(start);
+  let q = new Map(start.map((x) => [x, 0]));
+  const visited = new Map();
+  const marked = new Map();
 
-  while (steps) {
-    let nextNodes = new Set();
-    currNodes.forEach((point) => {
-      nextNodes = new Set([...nextNodes, ...findNext(point)]);
+  for (const [point, step] of q) {
+    if (visited.has(point)) continue;
+    if (step > steps) continue;
+    visited.set(point, step);
+    if (step % 2 === steps % 2) marked.set(point, step);
+
+    findNext(point).forEach((next) => {
+      if (!visited.has(next) && !q.has(next)) q.set(next, step + 1);
     });
-    currNodes = nextNodes;
-    steps--;
   }
 
   // console.log(
   //   MATRIX.map((line, y) =>
   //     line
   //       .map((v, x) => {
-  //         if (currNodes.has(str([x, y]))) return '0';
+  //         if (marked.has(str([x, y]))) return '0';
   //         return v;
   //       })
   //       .join('')
   //   ).join('\n')
   // );
 
-  return currNodes.size;
+  return marked.size;
 }
 
 function findNext(point) {
