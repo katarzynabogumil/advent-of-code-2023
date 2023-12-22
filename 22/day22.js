@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 
-const data = fs.readFileSync('test-data.txt', 'utf8', (err, data) => {
+const data = fs.readFileSync('data.txt', 'utf8', (err, data) => {
   if (err) throw err;
   return data;
 });
@@ -22,7 +22,7 @@ function first(data) {
   return blocksToDesintegrate;
 }
 
-function getUnsupportedAbove(block, setPoints) {
+function getUnsupportedAbove(block, setPoints, fallingBlocks = new Map()) {
   const blockStr = strBlock(block);
   const blocksAbove = new Map();
 
@@ -40,7 +40,7 @@ function getUnsupportedAbove(block, setPoints) {
 
   // check if under that block is some other point, not within this block
   for (const [blockAbove, _] of blocksAbove) {
-    let otherBlockBelowFLag = false;
+    let otherBlockHolding = false;
     const blockAbovePoints = unStrBlock(blockAbove);
     for (let point of blockAbovePoints) {
       const pointBelow = [point[0], point[1], point[2] - 1];
@@ -48,11 +48,12 @@ function getUnsupportedAbove(block, setPoints) {
       const otherBlockBelow = strBlock(setPoints.get(str(pointBelow)));
       if (otherBlockBelow === strBlock(block)) continue;
       if (otherBlockBelow === blockAbove) continue;
-      otherBlockBelowFLag = true;
+      if (fallingBlocks.size && fallingBlocks.has(otherBlockBelow)) continue;
+      otherBlockHolding = true;
       blocksAbove.delete(blockAbove);
       break;
     }
-    if (otherBlockBelowFLag) blocksAbove.delete(blockAbove);
+    if (otherBlockHolding) blocksAbove.delete(blockAbove);
   }
 
   return blocksAbove;
@@ -121,7 +122,35 @@ function unStrBlock(block) {
   return block.split('-').map((x) => x.split(',').map((y) => parseInt(y)));
 }
 
-function second(data) {}
+function second(data) {
+  const { blocks, setPoints } = getSetBlocks(data);
+  const blocksWithNoEffect = first(data);
+
+  let sum = 0;
+  blocks.forEach((block) => {
+    const blockStr = strBlock(block);
+    if (blocksWithNoEffect.has(blockStr)) return;
+
+    const unsupportedAbove = getUnsupportedAbove(block, setPoints);
+    let allAbove = new Map(unsupportedAbove);
+    for (const [blockAbove, j] of allAbove) {
+      const nextBlocksAbove = getUnsupportedAbove(
+        unStrBlock(blockAbove),
+        setPoints,
+        allAbove
+      );
+      for (const [nextAbove, k] of nextBlocksAbove) {
+        allAbove.set(nextAbove, true);
+      }
+    }
+    sum += allAbove.size;
+  });
+  return sum;
+}
 
 console.log(first(data).size);
+
+const startTime = performance.now();
 console.log(second(data));
+const endTime = performance.now();
+console.log(`Execution time: ${endTime - startTime} ms`);
