@@ -1,16 +1,24 @@
 'use strict';
 
 const fs = require('fs');
+const { constrainedMemory } = require('process');
 
 const data = fs.readFileSync('data.txt', 'utf8', (err, data) => {
   if (err) throw err;
   return data;
 });
 
-function first(data) {
-  const { start, end, matrix } = parseInput(data);
-  return findLongestPath(matrix, start, end);
+class Node {
+  constructor(x, y, value, steps = 0, prev) {
+    this.x = x;
+    this.y = y;
+    this.value = value;
+    this.steps = steps;
+    this.prev = prev;
+  }
 }
+
+const [START, END, MATRIX] = parseInput(data);
 
 function parseInput(data) {
   let start;
@@ -25,48 +33,27 @@ function parseInput(data) {
       return point;
     })
   );
-  return { start, end, matrix };
+  return [start, end, matrix];
 }
 
-class Node {
-  constructor(x, y, value, steps = 0, visited = new Map(), prev) {
-    this.x = x;
-    this.y = y;
-    this.value = value;
-    this.steps = steps;
-    this.visited = visited;
-    this.prev = prev;
-  }
-}
-
-// using Dijkstra with modification
-function findLongestPath(matrix, start, end) {
+function first() {
   const q = new Map();
   const visited = new Map();
   let found = [];
-  start.visited.set(str([start.x, start.y]), 1);
-  q.set(str([start.x, start.y]), 1);
+  visited.set(str([START.x, START.y]), 1);
+  q.set(str([START.x, START.y]), 1);
 
   while (q.size) {
     const nodeStr = findHighestStep(q);
     const [x, y] = unStr(nodeStr);
-    const node = matrix[y][x];
+    const node = MATRIX[y][x];
     q.delete(nodeStr);
 
-    if (node.x === end.x && node.y === end.y) {
-      found.push(
-        new Node(
-          node.x,
-          node.y,
-          node.value,
-          node.steps,
-          node.visited,
-          node.prev
-        )
-      );
+    if (node.x === END.x && node.y === END.y) {
+      found.push(new Node(node.x, node.y, node.value, node.steps, node.prev));
     } else {
       // find further steps
-      let nextSteps = findNextSteps(node, matrix);
+      let nextSteps = findNextSteps(node, 1);
       nextSteps.forEach((step) => {
         const strStep = str([step.x, step.y]);
         let strVisitedStep = strVisited(
@@ -98,10 +85,10 @@ function findHighestStep(q) {
   return maxNode;
 }
 
-function findNextSteps(node, matrix) {
+function findNextSteps(node, part) {
   let nextSteps = [];
-  let sizeX = matrix[0].length;
-  let sizeY = matrix.length;
+  let sizeX = MATRIX[0].length;
+  let sizeY = MATRIX.length;
   for (
     let row = Math.max(node.x - 1, 0);
     row < Math.min(node.x + 2, sizeX);
@@ -113,7 +100,9 @@ function findNextSteps(node, matrix) {
       col++
     ) {
       // no reverse
-      if (node.prev && row === node.prev.x && col === node.prev.y) continue;
+      if (part !== 'subpath') {
+        if (node.prev && row === node.prev.x && col === node.prev.y) continue;
+      }
 
       // no same node
       if (row === node.x && col === node.y) continue;
@@ -121,13 +110,15 @@ function findNextSteps(node, matrix) {
       // no diagonals
       if (row !== node.x && col !== node.y) continue;
 
-      let nextNode = matrix[col][row];
+      let nextNode = MATRIX[col][row];
       if (nextNode.value === '#') continue;
 
       // not allow going up the slope
-      if (nextNode.value === '>' && node.x - 1 === nextNode.x) continue;
-      if (nextNode.value === '<' && node.x + 1 === nextNode.x) continue;
-      if (nextNode.value === 'v' && node.y - 1 === nextNode.y) continue;
+      if (part === 1) {
+        if (nextNode.value === '>' && node.x - 1 === nextNode.x) continue;
+        if (nextNode.value === '<' && node.x + 1 === nextNode.x) continue;
+        if (nextNode.value === 'v' && node.y - 1 === nextNode.y) continue;
+      }
 
       nextNode.steps = node.steps + 1;
       nextNode.prev = node;
@@ -150,7 +141,125 @@ function unStr(point) {
   return point.split(',').map((x) => parseInt(x));
 }
 
+class SubPath {
+  constructor(endX, endY) {
+    this.endX = endX;
+    this.endY = endY;
+    this.next = this.findNext();
+  }
+
+  findNext() {
+    let next = [];
+    const q = new Map();
+    const visited = new Map();
+    const firstSteps = findNextSteps(MATRIX[this.endY][this.endX], 'subpath');
+    firstSteps.forEach((step) => q.set(str([step.x, step.y]), 1));
+
+    while (q.size) {
+      const nodeStr = q.keys().next().value;
+      const [x, y] = unStr(nodeStr);
+      visited.set(nodeStr, 0);
+      const node = MATRIX[y][x];
+      const steps = q.get(nodeStr);
+      q.delete(nodeStr);
+
+      const nextSteps = findNextSteps(node);
+      if (nextSteps.length === 1 && (node.x !== END.x || node.y !== END.y)) {
+        const step = nextSteps[0];
+        let strStep = str([step.x, step.y]);
+        if (!visited.has(strStep)) q.set(strStep, steps + 1);
+      } else {
+        next.push([str([node.x, node.y]), steps]);
+      }
+    }
+    return next;
+  }
+}
+
+function parseGraph() {
+  const q = new Map();
+  const graph = new Map();
+  const visited = new Map();
+  const startStr = str([START.x, START.y]);
+  graph.set(startStr, new SubPath(START.x, START.y));
+  q.set(startStr, 1);
+  let node;
+  let nextSteps;
+
+  while (q.size) {
+    const nodeStr = q.keys().next().value;
+    const [x, y] = unStr(nodeStr);
+    visited.set(nodeStr, 0);
+    node = MATRIX[y][x];
+    q.delete(nodeStr);
+
+    // find further steps
+    nextSteps = findNextSteps(node);
+    if (nextSteps.length === 1 && (node.x !== END.x || node.y !== END.y)) {
+      const step = nextSteps[0];
+      let strStep = str([step.x, step.y]);
+      if (!visited.has(strStep)) q.set(strStep, 1);
+    } else {
+      // save in the graph
+      const path = new SubPath(node.x, node.y);
+      nextSteps.forEach((next) => {
+        const nextStr = str([next.x, next.y]);
+        if (!visited.has(nextStr)) q.set(nextStr, 1);
+      });
+      graph.set(nodeStr, path);
+    }
+  }
+
+  return graph;
+}
+
+class PathStep {
+  constructor(key, steps = 0, visited = new Map()) {
+    this.key = key;
+    this.steps = steps;
+    this.visited = visited;
+  }
+}
+
+function second() {
+  const graph = parseGraph();
+
+  let max = 0;
+  const startKey = graph.keys().next().value;
+  const stack = [new PathStep(startKey)];
+
+  while (stack.length) {
+    const pathStep = stack.pop();
+    pathStep.visited.set(pathStep.key, pathStep.steps);
+    const path = graph.get(pathStep.key);
+
+    if (path.endX === END.x && path.endY === END.y) {
+      max = Math.max(max, pathStep.steps);
+      console.log(max);
+    }
+
+    path.next.forEach(([nextKey, steps]) => {
+      if (pathStep.visited.has(nextKey)) return;
+      const nextPath = graph.get(nextKey);
+      if (!nextPath) return;
+      let newStep = new PathStep(
+        nextKey,
+        pathStep.steps + steps,
+        new Map(pathStep.visited)
+      );
+      stack.push(newStep);
+    });
+  }
+
+  return max;
+}
+
 let startTime = performance.now();
-console.log(first(data));
+// console.log(first());
 let endTime = performance.now();
+// console.log(`Execution time: ${endTime - startTime} ms`);
+
+startTime = performance.now();
+console.log(second());
+endTime = performance.now();
 console.log(`Execution time: ${endTime - startTime} ms`);
